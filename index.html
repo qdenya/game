@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <canvas id="game" width="400" height="600"></canvas>
+    <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
+    <script>
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const WIDTH = canvas.width;
+      const HEIGHT = canvas.height;
+
+      const player = {
+        x: WIDTH / 2 - 20,
+        y: HEIGHT - 100,
+        width: 40,
+        height: 40,
+        speedX: 0,
+        speedY: 0,
+        jumpPower: -13,
+        gravity: 0.45,
+      };
+
+      let platforms = [];
+      let monsters = [];
+
+      let score = 0;
+      let bestScore = 0;
+      let gameOver = false;
+
+      const keys = {
+        left: false,
+        right: false,
+      };
+
+      function createPlatform(y) {
+        const platform = {
+          x: Math.random() * (WIDTH - 80),
+          y: y,
+          width: 80,
+          height: 12,
+        };
+
+        return platform;
+      }
+
+      function createPlatforms() {
+        platforms = [];
+        for (let i = 0; i < 8; i++) {
+          platforms.push(createPlatform(i * 80));
+        }
+
+        platforms.push({
+          x: WIDTH / 2 - 40,
+          y: HEIGHT - 20,
+          width: 80,
+          height: 12,
+        });
+      }
+
+      function renderPlatforms() {
+        ctx.fillStyle = "green";
+        platforms.forEach((platform) => {
+          ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+        });
+      }
+
+      function drawPlayer() {
+        ctx.fillStyle = "#ffdd33";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(player.x + 8, player.y + 10, 6, 6);
+        ctx.fillRect(player.x + 26, player.y + 10, 6, 6);
+
+        ctx.fillRect(player.x + 12, player.y + 28, 16, 4);
+      }
+
+      function updatePlayer() {
+        if (keys.left) {
+          player.speedX = -5;
+        } else if (keys.right) {
+          player.speedX = 5;
+        } else {
+          player.speedX = 0;
+        }
+
+        player.x += player.speedX;
+        player.speedY += player.gravity;
+        player.y += player.speedY;
+
+        if (player.x + player.width < 0) {
+          player.x = WIDTH;
+        }
+
+        if (player.x > WIDTH) {
+          player.x = -player.width;
+        }
+      }
+
+      function checkPlatformCollision() {
+        platforms.forEach((platform) => {
+          const isFalling = player.speedY > 0;
+
+          const playerBottom = player.y + player.height;
+          const playerPrevBottom = player.y + player.height - player.speedY;
+
+          const isInsideX =
+            player.x + player.width > platform.x &&
+            player.x < platform.x + platform.width;
+
+          const landedOnPlatform =
+            playerBottom >= platform.y &&
+            playerPrevBottom <= platform.y + platform.height;
+
+          if (isFalling && isInsideX && landedOnPlatform && !platform.broken) {
+            player.speedY = player.jumpPower;
+
+            if (platform.type === "break") {
+              platform.broken = true;
+              platform.fallSpeed = 4;
+            }
+          }
+        });
+      }
+
+      function moveCamera() {
+        const cameraLine = HEIGHT / 2;
+
+        if (player.y < cameraLine) {
+          const diff = cameraLine - player.y;
+
+          player.y = cameraLine;
+
+          platforms.forEach((platform) => {
+            platform.y += diff;
+          });
+
+          monsters.forEach((monster) => {
+            monster.y += diff;
+          });
+
+          score += Math.floor(diff);
+
+          if (score > bestScore) {
+            bestScore = score;
+          }
+        }
+      }
+
+      function updatePlatforms() {
+        platforms.forEach((platform, index) => {
+          if (platform.broken) {
+            platform.y += platform.fallSpeed;
+            platform.fallSpeed += 0.3;
+          }
+
+          if (platform.y > HEIGHT) {
+            platforms[index] = createPlatform(-20);
+          }
+        });
+      }
+
+      function gameLoop() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        if (!gameOver) {
+          renderPlatforms();
+          drawPlayer();
+          updatePlayer();
+          checkPlatformCollision();
+          moveCamera();
+          updatePlatforms();
+
+          //строить новые платформы
+          //обновлять счет
+          //следить за столкновениями
+          //обновлять позицию игрока
+          //удалять платформы и монстров, которые вышли за пределы экрана
+        } else {
+          //вывести сообщение о конце игры
+          //вывести кнопку для перезапуска игры
+          //вывести счет и лучший счет
+          //остановить игровой цикл
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.code === "ArrowLeft" || event.code === "KeyA") {
+          keys.left = true;
+        }
+
+        if (event.code === "ArrowRight" || event.code === "KeyD") {
+          keys.right = true;
+        }
+      });
+
+      document.addEventListener("keyup", (event) => {
+        if (event.code === "ArrowLeft" || event.code === "KeyA") {
+          keys.left = false;
+        }
+
+        if (event.code === "ArrowRight" || event.code === "KeyD") {
+          keys.right = false;
+        }
+      });
+
+      window.Telegram.WebApp.Gyroscope.start((orientation) => {
+        if (orientation.gamma < -10) {
+          keys.left = true;
+          keys.right = false;
+        } else if (orientation.gamma > 10) {
+          keys.right = true;
+          keys.left = false;
+        } else {
+          keys.left = false;
+          keys.right = false;
+        }
+      });
+
+      createPlatforms();
+      gameLoop();
+    </script>
+  </body>
+</html>
